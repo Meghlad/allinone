@@ -1,6 +1,7 @@
 /**
  * ui.js — page behaviour.
  *
+ *   • light / dark theme switching
  *   • sticky nav state and scroll-spy on the section links
  *   • reveal-on-scroll for .reveal elements
  *   • the Computer Vision / Robotics project tab switcher
@@ -9,6 +10,53 @@
   'use strict';
 
   const SECTION_IDS = ['about', 'skills', 'projects', 'timeline', 'contact'];
+
+  /* ------------------------------------------------------------------ *
+   * Theme
+   *
+   * The inline script in index.html has already set data-theme before
+   * first paint. This wires the switch and keeps the OS in sync for
+   * visitors who have never expressed a preference.
+   * ------------------------------------------------------------------ */
+
+  function initTheme() {
+    const root = document.documentElement;
+    const toggle = document.getElementById('theme-toggle');
+    const meta = document.getElementById('theme-color');
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const isDark = () => root.getAttribute('data-theme') === 'dark';
+
+    function read() {
+      try { return localStorage.getItem('theme'); } catch (e) { return null; }
+    }
+
+    function apply(dark, remember) {
+      if (dark) root.setAttribute('data-theme', 'dark');
+      else root.removeAttribute('data-theme');
+
+      if (remember) {
+        try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) { /* private mode */ }
+      }
+
+      if (meta) meta.setAttribute('content', dark ? '#0a0c10' : '#ffffff');
+      if (toggle) {
+        toggle.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+      }
+
+      // the canvas holds its own palette and has to be told to re-read it
+      window.dispatchEvent(new CustomEvent('themechange'));
+    }
+
+    apply(isDark(), false);  // sync label and browser chrome with the inline choice
+
+    if (toggle) toggle.addEventListener('click', () => apply(!isDark(), true));
+
+    // follow the OS only until the visitor picks a side
+    system.addEventListener('change', (event) => {
+      if (!read()) apply(event.matches, false);
+    });
+  }
 
   /* ------------------------------------------------------------------ *
    * Sticky nav + scroll-spy
@@ -115,6 +163,7 @@
    * Boot
    * ------------------------------------------------------------------ */
 
+  initTheme();
   initNav();
   initReveal();
   initTabs();

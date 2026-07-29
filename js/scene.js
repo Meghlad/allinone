@@ -32,11 +32,6 @@
   const TWO_PI = Math.PI * 2;
 
   const CONFIG = {
-    ink: [10, 12, 15],          // particles and mesh, matches --ink
-    laser: [214, 40, 40],       // the scan beam and its shockwave
-    haze: 'rgba(10, 12, 15, 0.05)',
-    farPoint: '88, 100, 114',   // globe points on the far side of the sphere
-
     globePoints: 1500,
     swarmSize: 14,
     clickSwarmSize: 20,
@@ -51,9 +46,35 @@
 
     // the load-in: grains detonate from the centre and settle into the globe
     introMs: 2200,
-    introMaxDelay: 0.42,        // fraction of the intro spent staggering grains
-    introGrain: [150, 158, 168] // flat grey, before the grains take their colour
+    introMaxDelay: 0.42         // fraction of the intro spent staggering grains
   };
+
+  /**
+   * Canvas colours live in css/style.css as --scene-* tokens so the light and
+   * dark palettes stay in one place. Re-read whenever the theme flips.
+   */
+  const PALETTE = {
+    ink: [10, 12, 15],
+    far: [88, 100, 114],
+    grain: [150, 158, 168],
+    laser: [214, 40, 40],
+    haze: 'rgba(10, 12, 15, 0.05)'
+  };
+
+  function readPalette() {
+    const css = getComputedStyle(document.documentElement);
+
+    const triplet = (name, fallback) => {
+      const parts = css.getPropertyValue(name).split(',').map((n) => parseFloat(n));
+      return parts.length === 3 && parts.every((n) => !Number.isNaN(n)) ? parts : fallback;
+    };
+
+    PALETTE.ink = triplet('--scene-ink', PALETTE.ink);
+    PALETTE.far = triplet('--scene-far', PALETTE.far);
+    PALETTE.grain = triplet('--scene-grain', PALETTE.grain);
+    PALETTE.laser = triplet('--scene-laser', PALETTE.laser);
+    PALETTE.haze = css.getPropertyValue('--scene-haze').trim() || PALETTE.haze;
+  }
 
   /* ------------------------------------------------------------------ *
    * State
@@ -91,8 +112,9 @@
     return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
   }
 
-  const ink = (alpha) => rgba(CONFIG.ink, alpha);
-  const laser = (alpha) => rgba(CONFIG.laser, alpha);
+  const ink = (alpha) => rgba(PALETTE.ink, alpha);
+  const far = (alpha) => rgba(PALETTE.far, alpha);
+  const laser = (alpha) => rgba(PALETTE.laser, alpha);
 
   /* ------------------------------------------------------------------ *
    * Vector maths — the sphere lives in "model" space, which the current
@@ -316,7 +338,7 @@
    * ------------------------------------------------------------------ */
 
   function drawStarfield() {
-    ctx.fillStyle = CONFIG.haze;
+    ctx.fillStyle = PALETTE.haze;
     for (let i = 0; i < 90; i++) {
       const x = (((i * 8161) % 1000) / 1000) * width;
       const y = (((i * 3733) % 997) / 997) * height;
@@ -337,7 +359,7 @@
 
     const settling = intro < 1;
     const span = 1 - CONFIG.introMaxDelay;
-    const [gr, gg, gb] = CONFIG.introGrain;
+    const [gr, gg, gb] = PALETTE.grain;
 
     for (let i = 0; i < spherePoints.length; i++) {
       const p = spherePoints[i];
@@ -369,16 +391,14 @@
       if (grain > 0.001) {
         // lerp from flat grey toward the grain's resting colour
         const near = z2 > 0.55;
-        const tr = near ? CONFIG.ink[0] : 88;
-        const tg = near ? CONFIG.ink[1] : 100;
-        const tb = near ? CONFIG.ink[2] : 114;
+        const tr = near ? PALETTE.ink[0] : PALETTE.far[0];
+        const tg = near ? PALETTE.ink[1] : PALETTE.far[1];
+        const tb = near ? PALETTE.ink[2] : PALETTE.far[2];
         ctx.fillStyle = `rgba(${Math.round(gr + (tr - gr) * (1 - grain))}, ` +
                         `${Math.round(gg + (tg - gg) * (1 - grain))}, ` +
                         `${Math.round(gb + (tb - gb) * (1 - grain))}, ${alpha})`;
       } else {
-        ctx.fillStyle = z2 > 0.55
-          ? ink(alpha * 0.95)
-          : `rgba(${CONFIG.farPoint}, ${alpha})`;
+        ctx.fillStyle = z2 > 0.55 ? ink(alpha * 0.95) : far(alpha);
       }
 
       ctx.fillRect(
@@ -398,7 +418,7 @@
     ctx.arc(centreX, centreY, radius * 1.005, 0, TWO_PI);
     ctx.stroke();
 
-    ctx.strokeStyle = `rgba(${CONFIG.farPoint}, ${0.35 * framing})`;
+    ctx.strokeStyle = far(0.35 * framing);
     ctx.beginPath();
     ctx.arc(centreX, centreY, radius * 1.38, 0, TWO_PI);
     ctx.stroke();
@@ -742,6 +762,13 @@
     }, { threshold: 0 }).observe(hero);
   }
 
+  // the theme controller in ui.js fires this after flipping data-theme
+  window.addEventListener('themechange', () => {
+    readPalette();
+    if (rafId === null) render(CONFIG.introMs, 16); // repaint a suspended scene
+  });
+
+  readPalette();
   resize();
 
   if (prefersReducedMotion) {

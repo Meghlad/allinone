@@ -48,8 +48,16 @@ works over `file://` as well as over HTTP.
 ## Editing
 
 **Theme** — every colour, font and metric is a custom property at the top of
-`css/style.css` under *Design tokens*. Changing `--accent` or `--bg` re-themes the
-whole page.
+`css/style.css` under *Design tokens*. Light lives in `:root`, dark in
+`:root[data-theme="dark"]`; no component rule below knows which is active, so
+adding a colour means adding it to both blocks and nothing else.
+
+The switch in the nav writes to `localStorage`, and an inline script in
+`index.html` applies the stored choice before first paint so there is no flash
+of the wrong theme. Visitors who have never touched the switch follow their OS.
+The canvas has its own palette: it reads the `--scene-*` tokens via
+`getComputedStyle` and re-reads them on a `themechange` event, so the two never
+drift apart.
 
 **Adding a project** — copy an `<article class="card proj">` block inside the
 relevant `.panel` in `index.html`, and bump the `.tab__count` on that tab.

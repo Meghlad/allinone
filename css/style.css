@@ -19,7 +19,12 @@
    1. Design tokens
    ========================================================================== */
 
+/* Light is the default. Dark overrides live in the [data-theme="dark"] block
+   below; the inline script in index.html stamps that attribute on <html>
+   before first paint, so there is no flash of the wrong theme. */
 :root {
+  color-scheme: light;
+
   /* surfaces */
   --bg:            #ffffff;
   --bg-alt:        #f6f7f8;
@@ -36,16 +41,33 @@
 
   /* accent — black, on purpose */
   --accent:        #0a0c0f;
+  --on-accent:     #ffffff;   /* text sitting on a filled accent surface */
   --wash:          rgba(10, 12, 15, 0.055);
   --wash-strong:   rgba(10, 12, 15, 0.10);
 
   /* pill surface — the nav bar and every section label */
   --bubble:        #ebedf0;
   --bubble-line:   rgba(10, 12, 15, 0.08);
+  --nav-bg:        rgba(235, 237, 240, 0.82);
+  --nav-bg-stuck:  rgba(235, 237, 240, 0.95);
 
   /* the only colour on the page: "you are reading this section" */
   --live:          #22c55e;
   --live-halo:     rgba(34, 197, 94, 0.55);
+
+  /* hero wordmark gradient */
+  --wordmark-from: #0a0c0f;
+  --wordmark-to:   #5a636e;
+
+  /* fades the canvas backdrop out from behind the headline */
+  --veil:          255, 255, 255;
+
+  /* canvas palette — read by js/scene.js, as "r, g, b" triplets */
+  --scene-ink:     10, 12, 15;
+  --scene-far:     88, 100, 114;
+  --scene-grain:   150, 158, 168;
+  --scene-laser:   214, 40, 40;
+  --scene-haze:    rgba(10, 12, 15, 0.05);
 
   /* elevation */
   --shadow-sm:     0 1px 2px rgba(10, 12, 15, 0.04);
@@ -61,6 +83,51 @@
   --maxw:          1180px;
   --radius:        16px;
   --radius-sm:     11px;
+}
+
+/* The same page inverted: near-black surfaces, near-white ink. Only the
+   tokens change — no component rule below knows which theme is active. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg:            #0a0c10;
+  --bg-alt:        #0e1116;
+  --surface:       #101419;
+
+  --line:          #1e232b;
+  --line-strong:   #333c47;
+
+  --ink:           #f2f5f8;   /* 17.8:1 on --bg */
+  --ink-2:         #a9b4c1;   /*  8.9:1 */
+  --ink-3:         #7e8896;   /*  5.2:1 — same AA floor as light */
+
+  --accent:        #f2f5f8;
+  --on-accent:     #0a0c10;
+  --wash:          rgba(255, 255, 255, 0.07);
+  --wash-strong:   rgba(255, 255, 255, 0.13);
+
+  --bubble:        #191d24;
+  --bubble-line:   rgba(255, 255, 255, 0.09);
+  --nav-bg:        rgba(25, 29, 36, 0.82);
+  --nav-bg-stuck:  rgba(25, 29, 36, 0.95);
+
+  --live:          #34d399;
+  --live-halo:     rgba(52, 211, 153, 0.55);
+
+  --wordmark-from: #ffffff;
+  --wordmark-to:   #7a8697;
+
+  --veil:          10, 12, 16;
+
+  /* inverted: pale grains on a dark sphere, and a hotter laser to hold up */
+  --scene-ink:     226, 232, 240;
+  --scene-far:     122, 136, 152;
+  --scene-grain:   88, 98, 110;
+  --scene-laser:   255, 82, 82;
+  --scene-haze:    rgba(255, 255, 255, 0.05);
+
+  --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md:     0 18px 40px -22px rgba(0, 0, 0, 0.85);
 }
 
 /* ==========================================================================
@@ -91,7 +158,7 @@ body {
 a   { color: inherit; text-decoration: none; }
 svg { display: block; }
 
-::selection { background: var(--ink); color: #fff; }
+::selection { background: var(--ink); color: var(--on-accent); }
 
 :focus-visible {
   outline: 2px solid var(--ink);
@@ -197,13 +264,13 @@ section { position: relative; z-index: 3; }
   padding: 12px 24px;
   border: 1px solid var(--bubble-line);
   border-radius: 999px;
-  background: rgba(235, 237, 240, 0.82);
+  background: var(--nav-bg);
   backdrop-filter: blur(12px);
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 .nav.is-stuck {
-  background: rgba(235, 237, 240, 0.95);
+  background: var(--nav-bg-stuck);
   box-shadow: var(--shadow-md);
 }
 
@@ -236,6 +303,41 @@ section { position: relative; z-index: 3; }
 .nav__links a.is-active { color: var(--ink); font-weight: 500; }
 .nav__sep               { color: var(--line-strong); }
 
+/* light / dark switch — shows the theme you'd move to */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--bubble-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+  background: var(--wash);
+  border-color: var(--line-strong);
+}
+
+.theme-toggle svg { width: 15px; height: 15px; fill: currentColor; }
+
+.theme-toggle__sun { display: none; }
+:root[data-theme='dark'] .theme-toggle__sun  { display: block; }
+:root[data-theme='dark'] .theme-toggle__moon { display: none; }
+
+@media (max-width: 640px) {
+  .theme-toggle     { width: 26px; height: 26px; margin-left: 2px; }
+  .theme-toggle svg { width: 13px; height: 13px; }
+}
+
 @media (max-width: 640px) {
   .nav        { top: 10px; padding: 10px 16px; gap: 12px; }
   .nav__links { font-size: 9px; letter-spacing: 0.12em; gap: 7px; }
@@ -264,9 +366,9 @@ section { position: relative; z-index: 3; }
   z-index: 1;
   pointer-events: none;
   background: radial-gradient(120% 80% at 18% 40%,
-    rgba(255, 255, 255, 0.94) 0%,
-    rgba(255, 255, 255, 0.58) 45%,
-    rgba(255, 255, 255, 0) 75%);
+    rgba(var(--veil), 0.94) 0%,
+    rgba(var(--veil), 0.58) 45%,
+    rgba(var(--veil), 0) 75%);
 }
 
 .hero {
@@ -293,7 +395,7 @@ section { position: relative; z-index: 3; }
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.04em;
-  background: linear-gradient(180deg, #0a0c0f 25%, #5a636e 100%);
+  background: linear-gradient(180deg, var(--wordmark-from) 25%, var(--wordmark-to) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -427,12 +529,12 @@ section { position: relative; z-index: 3; }
 .btn--solid {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
 .btn--solid:hover {
-  color: #fff;
+  color: var(--on-accent);
   box-shadow: var(--shadow-md);
 }
 
@@ -512,7 +614,7 @@ section { position: relative; z-index: 3; }
 
 .tab[aria-selected='true'] {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
