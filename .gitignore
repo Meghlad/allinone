@@ -1,0 +1,6 @@
+# macOS
+.DS_Store
+
+# animation source — not part of the deployed site
+*.dc.html
+support.js
