@@ -3,7 +3,7 @@
 Personal portfolio site. Static, dependency-free, no build step — plain HTML, CSS
 and JavaScript, deployable to any static host.
 
-**Live:** https://meghlad.github.io
+**Live:** https://meghlad.github.io/allinone/
 
 ## Structure
 
